@@ -88,4 +88,4 @@ getLocalIPAddresses().forEach((ip) => {
 });
 console.log(`======================================================\n`);
 
-export default app;
+
