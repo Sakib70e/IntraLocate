@@ -1,27 +1,28 @@
 
-# IntraLocate API - Render Cloud Dockerfile
-FROM oven/bun:1.1.20-alpine
+# IntraLocate API - Render
+FROM oven/bun:1.4.4
 
 WORKDIR /app
 
-# Install OpenSSL required by Prisma
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package.json bun.lockb* ./
 RUN bun install --frozen-lockfile || bun install
 
-# Copy source code and Prisma schema
+# Copy backend source
 COPY . .
 
 # Generate Prisma client
 RUN bunx prisma generate
 
-# Application settings
-EXPOSE 3000
+# Server configuration
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Start backend
+EXPOSE 3000
+
 CMD ["bun", "run", "src/index.js"]
