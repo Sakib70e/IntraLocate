@@ -1,18 +1,11 @@
 {
-  "name": "indoorlocatizion",
+  "name": "indoor-localization-saas",
   "version": "1.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "expo": "~57.0.24",
-    "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-native": "0.86.3"
-  },
+  "description": "Multi-tenant Indoor Localization SaaS MVP with Wi-Fi RSSI Fingerprinting and ML Pipeline",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "private": true
+    "backend:dev": "cd backend && bun run src/index.js",
+    "backend:push": "cd backend && bun run db:push",
+    "frontend:start": "cd frontend && npx expo start",
+    "frontend:android": "cd frontend && npx expo run:android"
+  }
 }

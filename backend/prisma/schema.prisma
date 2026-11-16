@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  passwordHash String
+  name         String
+  role         String               @default("USER") // "SYSTEM_ADMIN" | "USER"
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  memberships  OrganizationMember[]
+  recordings   FingerprintRecording[]
+}
+
+model Organization {
+  id                 String               @id @default(cuid())
+  name               String
+  slug               String?
+  code               String               @unique // 6-8 char unique join code (e.g. "ORG-X7K2P9")
+  description        String?              @db.Text
+  joinSecurityInfo   String?              // Optional security passphrase required to join
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  members            OrganizationMember[]
+  sites              Site[]
+  recordings         FingerprintRecording[]
+  trainingJobs       TrainingJob[]
+  modelVersions      ModelVersion[]
+}
+
+model OrganizationMember {
+  id                     String       @id @default(cuid())
+  userId                 String
+  organizationId         String
+  role                   String       @default("MEMBER") // "ADMIN" | "MEMBER"
+  joinedAt               DateTime     @default(now())
+
+  // Device & Permission status reporting
+  locationPermission     String?      @default("UNKNOWN") // "GRANTED" | "DENIED" | "UNKNOWN"
+  bgLocationPermission   String?      @default("UNKNOWN") // "GRANTED" | "DENIED" | "UNKNOWN"
+  wifiScanStatus         String?      @default("UNKNOWN") // "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN"
+  locationServicesStatus String?      @default("UNKNOWN") // "ENABLED" | "DISABLED" | "UNKNOWN"
+  lastSeenAt             DateTime?
+  lastSyncAt             DateTime?
+  lastLocalization       Json?        // { roomId, roomName, floorName, siteName, confidence, timestamp }
+  isTrackingActive       Boolean      @default(false)
+  deviceModel            String?
+  osVersion              String?
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model Site {
+  id             String                 @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?                @db.Text
+  address        String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  floors         Floor[]
+  recordings     FingerprintRecording[]
+  trainingJobs   TrainingJob[]
+  modelVersions  ModelVersion[]
+}
+
+model Floor {
+  id          String                 @id @default(cuid())
+  siteId      String
+  name        String                 // e.g. "Ground Floor", "Floor 2"
+  floorNumber Int                    @default(1)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  site        Site                   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  rooms       Room[]
+  recordings  FingerprintRecording[]
+}
+
+model Room {
+  id          String                 @id @default(cuid())
+  floorId     String
+  name        String                 // e.g. "Conference Room A", "Living Room"
+  code        String?                // e.g. "CR-A"
+  description String?                @db.Text
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  floor       Floor                  @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  recordings  FingerprintRecording[]
+}
+
+model FingerprintRecording {
+  id             String       @id @default(cuid())
+  organizationId String
+  siteId         String
+  floorId        String
+  roomId         String
+  userId         String
+  timestamp      DateTime     @default(now())
+  magX           Float        @default(0)
+  magY           Float        @default(0)
+  magZ           Float        @default(0)
+  magTotal       Float        @default(0)
+  wifiData       Json         // Map of AP identifier -> RSSI (dBm) e.g. {"AP_1": -55}
+  apsCount       Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site           Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  floor          Floor        @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  room           Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, siteId, floorId, roomId])
+}
+
+model TrainingJob {
+  id             String       @id @default(cuid())
+  organizationId String
+  siteId         String
+  status         String       @default("PENDING") // "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
+  algorithm      String       @default("KNN_CENTROID")
+  metrics        Json?        // { accuracy, sampleCount, apCount, classes: [...] }
+  error          String?      @db.Text
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site           Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, siteId])
+}
+
+model ModelVersion {
+  id             String       @id @default(cuid())
+  organizationId String
+  siteId         String
+  version        Int          @default(1)
+  algorithm      String       @default("KNN_CENTROID")
+  featureColumns Json         // Array of AP identifiers: ["AP_1", "AP_2", ...]
+  modelArtifact  Json         // Serialized weights/centroids for each room/location
+  accuracy       Float?
+  sampleCount    Int          @default(0)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site           Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, siteId, isActive])
+}

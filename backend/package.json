@@ -1,0 +1,23 @@
+{
+  "name": "indoor-localization-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "bun run src/index.js",
+    "dev": "bun --watch src/index.js",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/jwt": "^1.4.2",
+    "@prisma/client": "6.4.1",
+    "bcryptjs": "^3.0.3",
+    "elysia": "^1.4.30"
+  },
+  "devDependencies": {
+    "prisma": "6.4.1"
+  }
+}
